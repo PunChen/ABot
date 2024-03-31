@@ -1,5 +1,6 @@
 from bot_utils.bot import Bot
 from command_utils.Command import Command
+from lang_utils import language
 if __name__ == '__main__':
     bot = Bot()
     running = True
@@ -17,3 +18,6 @@ if __name__ == '__main__':
             continue
         ret = bot.on_text(text)
         print("Abot: {}".format(ret))
+        filename = language.text2audio(ret)
+        language.play_audio(filename)
+

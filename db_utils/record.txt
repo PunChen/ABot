@@ -12,3 +12,9 @@
 2024-03-25 00:18:37.947148	see you next time
 2024-03-25 00:18:52.173047	next time you will be able to listen from me
 2024-03-25 00:19:06.474873	bye, to bed
+2024-03-31 21:09:51.669516	date
+2024-03-31 21:09:55.827628	time
+2024-03-31 21:11:23.228812	added text to speech ablity
+2024-03-31 21:11:38.906030	can interact instantlly
+2024-03-31 21:13:36.146007	need basic more data to respond
+2024-03-31 21:13:51.189577	StarRail Lunch!!!\
