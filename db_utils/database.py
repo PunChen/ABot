@@ -4,8 +4,8 @@ import datetime
 
 db_lock = Lock()
 
-data_file_name = "db_utils/data.txt"
-record_file_name = "db_utils/record.txt"
+data_file_name = "./db_utils/data.json"
+record_file_name = "./db_utils/record.json"
 
 
 class DB:
@@ -21,18 +21,11 @@ class DB:
     def load(self):
         global db_lock
         # read data file and record file
-        lst_data = FileUtils.read_file(data_file_name)
-        lst_record = FileUtils.read_file(record_file_name)
+        dic_data = FileUtils.read_json(data_file_name, {})
+        lst_record = FileUtils.read_json(record_file_name, [])
         # load to memory
         with db_lock:
-            self.data['hello'] = "hi"
-            self.data['hi'] = "helo"
-            self.data['who are you'] = "I am Abot, an AGI bot designed for instant conversation"
-            self.data['what can you help'] = "I can help you with talking and recording"
-            for line in lst_data:
-                arr = line.split("\t")
-                if len(arr) == 2:
-                    self.data[arr[0]] = arr[1]
+            self.data.update(dic_data)
             self.record += lst_record
             self.loaded = True
         pass
@@ -43,7 +36,7 @@ class DB:
         # todo find optimization
         if self.data.__contains__(text):
             return self.data[text]
-        return None
+        return "sorry,i can not understand"
 
     def update(self, text):
         if not self.loaded:

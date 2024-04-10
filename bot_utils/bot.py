@@ -13,6 +13,18 @@ class Bot:
         self.status = BotStatus.INIT
         self.db_inst = database.DB()
         self.status = BotStatus.TALK
+        self.running = False
+
+    def is_running(self):
+        return self.running
+
+    def set_running(self, running):
+        self.running = running
+        text = "hello, what can i help?"
+        print(text)
+        filename = language.text2audio(text)
+        language.play_audio(filename)
+        pass
 
     def switch_status(self, status_value):
         with status_lock:

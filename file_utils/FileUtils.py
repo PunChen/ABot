@@ -21,7 +21,7 @@ def read_file(path):
     pre_check(path)
     lines = []
     try:
-        with open(path, 'a+', encoding='utf-8') as fp:
+        with open(path, 'r', encoding='utf-8') as fp:
             lines += fp.readlines()
         return lines
     except Exception as e:
