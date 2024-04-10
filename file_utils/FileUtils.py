@@ -29,6 +29,17 @@ def read_file(path):
     return lines
 
 
+def write_json(path, data):
+    pre_check(path)
+    try:
+        fp = open(path, 'w+', encoding='utf-8')
+        json.dump(data, fp)
+        return True
+    except Exception as e:
+        print("write_json: ", e)
+    return False
+
+
 def read_json(path, default):
     pre_check(path)
     res = default
@@ -40,6 +51,7 @@ def read_json(path, default):
         print("read_json: ", e)
     return res
 
+
 def read_json_from_fp(fp, default):
     res = default
     try:
@@ -48,6 +60,7 @@ def read_json_from_fp(fp, default):
     except Exception as e:
         print("read_json_from_fp: ", e)
     return res
+
 
 def get_write_file_pointer(path):
     pre_check(path)

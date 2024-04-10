@@ -23,7 +23,7 @@ def audio2text(audio_file):
 
 def text2audio(text):
     try:
-        filename = "{}.wav".format(time.time())
+        filename = "audios/{}.wav".format(time.time())
         engine.save_to_file(text, filename)
         engine.runAndWait()
         return filename

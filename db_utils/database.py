@@ -13,10 +13,13 @@ class DB:
     def __init__(self):
         self.data = {}
         self.record = []
-        self.data_fp = None
-        self.record_fp = None
         self.loaded = False
         self.load()
+
+    def save(self):
+        FileUtils.write_json(data_file_name, self.data)
+        FileUtils.write_json(record_file_name, self.record)
+        pass
 
     def load(self):
         global db_lock
@@ -48,8 +51,9 @@ class DB:
         if not self.loaded:
             self.load()
         key = datetime.datetime.now()
-        line = "{}\t{}\n".format(key, text)
-        self.record.append(line)
-        res = FileUtils.append_file_content(line, record_file_name)
-        print("insert : {}".format(res))
+        obj = {
+            "time": str(key),
+            "text": text
+        }
+        self.record.append(obj)
         return None

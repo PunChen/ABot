@@ -10,7 +10,7 @@ if __name__ == '__main__':
             continue
         elif text == Command.STOP.value:
             bot.set_running(False)
-            break
+            continue
         elif text.startswith(Command.SWITCH.value):
             value_str = text.split(" ")[-1]
             value = int(value_str)

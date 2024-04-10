@@ -20,10 +20,13 @@ class Bot:
 
     def set_running(self, running):
         self.running = running
-        text = "hello, what can i help?"
-        print(text)
-        filename = language.text2audio(text)
-        language.play_audio(filename)
+        if self.running:
+            text = "hello, what can i help?"
+            print(text)
+            filename = language.text2audio(text)
+            language.play_audio(filename)
+        else:
+            self.db_inst.save()
         pass
 
     def switch_status(self, status_value):
