@@ -1,5 +1,5 @@
 from multiprocessing import Lock
-from file_utils import FileUtils
+from ..file_utils import FileUtils
 import datetime
 
 db_lock = Lock()

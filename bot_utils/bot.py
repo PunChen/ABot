@@ -1,9 +1,9 @@
 from multiprocessing import Lock
 
-from const_utils import constant
-from const_utils.constant import BotStatus
-from db_utils import database
-from lang_utils import language
+from ..const_utils import constant
+from ..const_utils.constant import BotStatus
+from ..db_utils import database
+from ..lang_utils import language
 
 status_lock = Lock()
 
