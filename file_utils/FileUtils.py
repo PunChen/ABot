@@ -34,8 +34,8 @@ def read_file(path):
 def write_json(path, data):
     pre_check(path)
     try:
-        fp = open(path, 'w+', encoding='utf-8')
-        json.dump(data, fp)
+        with open(path, 'w+', encoding='utf-8') as fp:
+            json.dump(data, fp)
         return True
     except Exception as e:
         logger.error("write_json fail: ", e)
@@ -46,8 +46,8 @@ def read_json(path, default):
     pre_check(path)
     res = default
     try:
-        fp = open(path, 'r', encoding='utf-8')
-        res = json.load(fp)
+        with open(path, 'r', encoding='utf-8') as fp:
+            res = json.load(fp)
         return res
     except Exception as e:
         logger.error("read_json fail: ", e)
