@@ -4,8 +4,8 @@ import datetime
 from astrbot.api import logger
 db_lock = Lock()
 
-data_file_name = "./data.json"
-record_file_name = "./record.json"
+data_file_name = "../db_utils/data.json"
+record_file_name = "../db_utils/record.json"
 
 
 class DB:
