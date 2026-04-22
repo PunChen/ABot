@@ -18,14 +18,14 @@ def process_event(text):
     elif text.startswith(Command.SWITCH.value):
         value_str = text.split(" ")[-1]
         value = int(value_str)
-        bot.switch_status(value)
-        return None
+        ret = bot.switch_status(value)
+        return ret
     else:
         ret = bot.on_text(text)
         logger.warning("process_event return :{}".format(ret))
-    # filename = language.text2audio(ret)
-    # language.play_audio(filename)
-    return ret
+        # filename = language.text2audio(ret)
+        # language.play_audio(filename)
+        return ret
 
 
 class ABot(Star):
