@@ -37,6 +37,7 @@ class DB:
         if not self.loaded:
             return text
         # todo find optimization
+        print(self.data)
         if self.data.__contains__(text):
             return self.data[text]
         return "sorry,i can not understand"
