@@ -1,6 +1,6 @@
-from bot_utils.bot import Bot
-from command_utils.Command import Command
-from lang_utils import language
+from .bot_utils.bot import Bot
+from .command_utils.Command import Command
+from .lang_utils import language
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger  # 使用 astrbot 提供的 logger 接口
