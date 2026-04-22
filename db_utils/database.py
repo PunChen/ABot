@@ -1,11 +1,13 @@
 from multiprocessing import Lock
 from ..file_utils import FileUtils
 import datetime
+import os
 from astrbot.api import logger
+
 db_lock = Lock()
 
-data_file_name = "../db_utils/data.json"
-record_file_name = "../db_utils/record.json"
+data_file_name = os.getcwd() + "./data.json"
+record_file_name = os.getcwd() + "./record.json"
 
 
 class DB:
