@@ -1,7 +1,7 @@
 from multiprocessing import Lock
 from ..file_utils import FileUtils
 import datetime
-
+from astrbot.api import logger
 db_lock = Lock()
 
 data_file_name = "./db_utils/data.json"
@@ -37,7 +37,7 @@ class DB:
         if not self.loaded:
             return text
         # todo find optimization
-        print(self.data)
+        logger.warn(f"data:{self.data}")
         if self.data.__contains__(text):
             return self.data[text]
         return "sorry,i can not understand"
