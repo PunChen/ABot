@@ -10,7 +10,8 @@ def pre_check(path):
         ind = str(path).rfind(os.sep)
         if ind != -1:
             dirs = path[:ind]
-            os.makedirs(dirs)
+            if not os.path.exists(dirs):
+                os.makedirs(dirs)
         with open(path, "a+", encoding='utf-8') as f:
             pass
     except Exception as e:
