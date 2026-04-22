@@ -16,9 +16,9 @@ class DB:
         self.data = {}
         self.record = []
         self.loaded = False
-        self.load()
         self.data_file_path = os.path.join(base_dir, data_file_name)
         self.record_file_path = os.path.join(base_dir, record_file_name)
+        self.load()
 
     def save(self):
         FileUtils.write_json(self.data_file_path, self.data)
