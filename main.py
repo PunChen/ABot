@@ -20,6 +20,8 @@ def process_event(text):
         value = int(value_str)
         ret = bot.switch_status(value)
         return ret
+    elif text.startswith(Command.RECORDS.value):
+        return bot.on_records()
     else:
         ret = bot.on_text(text)
         logger.warning("process_event return :{}".format(ret))
@@ -32,8 +34,18 @@ class ABot(Star):
     def __init__(self, context: Context):
         super().__init__(context)
 
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
+    # 注册指令的装饰器
     @filter.command("abot")
+    async def abot(self, event: AstrMessageEvent):
+        """abot 命令接文本消息"""  # 这是 handler 的描述，将会被解析方便用户了解插件内容。非常建议填写。
+        user_name = event.get_sender_name()
+        message_str = event.message_str.removeprefix('abot ')  # abot+空格
+        message_ret = process_event(message_str)
+        if message_ret is None:
+            return
+        yield event.plain_result(f"received: {message_str}\nsender: {user_name}\nresponse: {message_ret}")  # 发送一条纯文本消息
+
+    @filter.command(command_name="abot", sub_command="records")
     async def abot(self, event: AstrMessageEvent):
         """abot 命令接文本消息"""  # 这是 handler 的描述，将会被解析方便用户了解插件内容。非常建议填写。
         user_name = event.get_sender_name()
@@ -45,6 +57,9 @@ class ABot(Star):
 
     async def terminate(self):
         """可选择实现 terminate 函数，当插件被卸载/停用时会调用。"""
+        global bot
+        if bot is not None:
+            bot.set_running(False)
         logger.info("abot plugin stopped")
 
 

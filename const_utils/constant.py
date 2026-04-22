@@ -33,5 +33,5 @@ class Language(Enum):
 class BotStatus(Enum):
     INIT = 0
     TALK = 1
-    LEARN = 2
-    RECORD = 3
+    RECORD = 2
+    LEARN = 3

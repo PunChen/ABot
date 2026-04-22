@@ -41,7 +41,6 @@ class DB:
         if not self.loaded:
             self.load()
         # todo find optimization
-        logger.warn(f"data:{self.data}")
         if self.data.__contains__(text):
             return self.data[text]
         return "sorry, i can not understand"

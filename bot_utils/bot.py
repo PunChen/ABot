@@ -5,6 +5,7 @@ from ..const_utils.constant import BotStatus
 from ..db_utils import database
 from ..lang_utils import language
 from astrbot.api import logger
+
 status_lock = Lock()
 
 
@@ -59,6 +60,12 @@ class Bot:
             # record mode : record every word you said to Abot
             res = self.db_inst.insert(text)
         return res
+
+    def on_records(self):
+        result = ''
+        for item in self.db_inst.record:
+            result += f"{item['time']} {item['text']}\n"
+        return result
 
     def on_voice(self, audio):
         logger.info("on_voice try parse audio...")
