@@ -36,10 +36,10 @@ class ABot(Star):
     async def abot(self, event: AstrMessageEvent):
         """abot 命令接文本消息"""  # 这是 handler 的描述，将会被解析方便用户了解插件内容。非常建议填写。
         user_name = event.get_sender_name()
-        message_str = event.message_str.removeprefix('abot')  # 获取消息的纯文本内容
+        message_str = event.message_str.removeprefix('abot ')  # abot+空格
         message_ret = process_event(message_str)
         logger.info("abot command")
-        yield event.plain_result(f"received: {message_str}\nsender:{user_name}\nresponse: {message_ret}")  # 发送一条纯文本消息
+        yield event.plain_result(f"received: {message_str}\nsender: {user_name}\nresponse: {message_ret}")  # 发送一条纯文本消息
 
     async def terminate(self):
         """可选择实现 terminate 函数，当插件被卸载/停用时会调用。"""
