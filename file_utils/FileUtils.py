@@ -6,6 +6,7 @@ from astrbot.api import logger
 def pre_check(path):
     if len(path) == 0:
         return
+    logger.warn(f"check path:{path}")
     try:
         if not os.path.exists(path):
             with open(path, "a+", encoding='utf-8') as f:
