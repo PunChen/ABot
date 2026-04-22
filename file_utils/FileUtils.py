@@ -1,5 +1,6 @@
 import json
 import os
+from astrbot.api import logger
 
 
 def pre_check(path):
@@ -13,7 +14,7 @@ def pre_check(path):
         with open(path, "a+", encoding='utf-8') as f:
             pass
     except Exception as e:
-        print("pre_check: ", e)
+        logger.error("pre_check fail: ", e)
     pass
 
 
@@ -25,7 +26,7 @@ def read_file(path):
             lines += fp.readlines()
         return lines
     except Exception as e:
-        print("read_file: ", e)
+        logger.error("read_file fail: ", e)
     return lines
 
 
@@ -36,7 +37,7 @@ def write_json(path, data):
         json.dump(data, fp)
         return True
     except Exception as e:
-        print("write_json: ", e)
+        logger.error("write_json fail: ", e)
     return False
 
 
@@ -48,7 +49,7 @@ def read_json(path, default):
         res = json.load(fp)
         return res
     except Exception as e:
-        print("read_json: ", e)
+        logger.error("read_json fail: ", e)
     return res
 
 
@@ -58,7 +59,7 @@ def read_json_from_fp(fp, default):
         res = json.load(fp)
         return res
     except Exception as e:
-        print("read_json_from_fp: ", e)
+        logger.error("read_json_from_fp fail: ", e)
     return res
 
 
@@ -68,7 +69,7 @@ def get_write_file_pointer(path):
         fp = open(path, 'w+', encoding='utf-8')
         return fp
     except Exception as e:
-        print("get_write_file_pointer: ", e)
+        logger.error("get_write_file_pointer fail: ", e)
     pass
 
 
@@ -78,7 +79,7 @@ def get_read_file_pointer(path):
         fp = open(path, 'r', encoding='utf-8')
         return fp
     except Exception as e:
-        print("get_read_file_pointer: ", e)
+        logger.error("get_read_file_pointer fail: ", e)
     pass
 
 
@@ -88,5 +89,5 @@ def append_file_content(line, path):
             fp.write(line)
         return True
     except Exception as e:
-        print("append_file_content: ", e)
+        logger.error("append_file_content fail: ", e)
     return False
