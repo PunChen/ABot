@@ -23,8 +23,8 @@ class Bot:
         if self.running:
             text = "hello, what can i help?"
             logger.info(text)
-            filename = language.text2audio(text)
-            language.play_audio(filename)
+            # filename = language.text2audio(text)
+            # language.play_audio(filename)
         else:
             self.db_inst.save()
         pass
@@ -35,9 +35,13 @@ class Bot:
                 tgt_status = BotStatus(status_value)
                 logger.info("try switch status: {} -> {}".format(self.status, tgt_status))
                 self.status = tgt_status
-                logger.info("switch to status: {} success".format(status_value))
+                result = f"switch to status: {tgt_status}({status_value}) success"
+                logger.info(result)
+                return result
             else:
-                logger.error("switch to status: {} failed".format(status_value))
+                result = f"switch to status: {status_value} failed"
+                logger.error(result)
+                return result
 
     def on_text(self, text):
         res = None
