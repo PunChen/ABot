@@ -24,6 +24,7 @@ class DB:
     def load(self):
         global db_lock
         # read data file and record file
+        logger.warn(f"before load:{self.data}")
         dic_data = FileUtils.read_json(data_file_name, {})
         lst_record = FileUtils.read_json(record_file_name, [])
         # load to memory
@@ -31,6 +32,7 @@ class DB:
             self.data.update(dic_data)
             self.record += lst_record
             self.loaded = True
+        logger.warn(f"after load:{self.data}")
         pass
 
     def find(self, text):
