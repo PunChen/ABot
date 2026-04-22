@@ -6,8 +6,8 @@ from astrbot.api import logger
 
 db_lock = Lock()
 
-data_file_name = os.getcwd() + "./data.json"
-record_file_name = os.getcwd() + "./record.json"
+data_file_name = os.path.join(os.getcwd(), "data.json")
+record_file_name = os.path.join(os.getcwd(), "record.json")
 
 
 class DB:
