@@ -5,7 +5,7 @@ import os
 from astrbot.api import logger
 
 db_lock = Lock()
-
+base_dir = os.path.dirname(os.path.abspath(__file__))
 data_file_name = "data.json"
 record_file_name = "record.json"
 
@@ -17,7 +17,6 @@ class DB:
         self.record = []
         self.loaded = False
         self.load()
-        base_dir = os.path.dirname(os.path.abspath(__file__))
         self.data_file_path = os.path.join(base_dir, data_file_name)
         self.record_file_path = os.path.join(base_dir, record_file_name)
 
