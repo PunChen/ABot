@@ -6,8 +6,8 @@ from astrbot.api import logger
 
 db_lock = Lock()
 
-data_file_name = os.path.join(os.getcwd(), "data.json")
-record_file_name = os.path.join(os.getcwd(), "record.json")
+data_file_name = "data.json"
+record_file_name = "record.json"
 
 
 class DB:
@@ -17,18 +17,21 @@ class DB:
         self.record = []
         self.loaded = False
         self.load()
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.data_file_path = os.path.join(base_dir, data_file_name)
+        self.record_file_path = os.path.join(base_dir, record_file_name)
 
     def save(self):
-        FileUtils.write_json(data_file_name, self.data)
-        FileUtils.write_json(record_file_name, self.record)
+        FileUtils.write_json(self.data_file_path, self.data)
+        FileUtils.write_json(self.record_file_path, self.record)
         pass
 
     def load(self):
         global db_lock
         # read data file and record file
         logger.warn(f"before load:{self.data}")
-        dic_data = FileUtils.read_json(data_file_name, {})
-        lst_record = FileUtils.read_json(record_file_name, [])
+        dic_data = FileUtils.read_json(self.data_file_path, {})
+        lst_record = FileUtils.read_json(self.record_file_path, [])
         # load to memory
         with db_lock:
             self.data.update(dic_data)
