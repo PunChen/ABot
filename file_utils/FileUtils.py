@@ -7,13 +7,9 @@ def pre_check(path):
     if len(path) == 0:
         return
     try:
-        ind = str(path).rfind(os.sep)
-        if ind != -1:
-            dirs = path[:ind]
-            if not os.path.exists(dirs):
-                os.makedirs(dirs)
-        with open(path, "a+", encoding='utf-8') as f:
-            pass
+        if not os.path.exists(path):
+            with open(path, "a+", encoding='utf-8') as f:
+                pass
     except Exception as e:
         logger.error("pre_check fail: ", e)
     pass
