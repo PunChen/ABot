@@ -4,7 +4,7 @@ from ..const_utils import constant
 from ..const_utils.constant import BotStatus
 from ..db_utils import database
 from ..lang_utils import language
-
+from astrbot.api import logger
 status_lock = Lock()
 
 
@@ -22,7 +22,7 @@ class Bot:
         self.running = running
         if self.running:
             text = "hello, what can i help?"
-            print(text)
+            logger.info(text)
             filename = language.text2audio(text)
             language.play_audio(filename)
         else:
@@ -33,11 +33,11 @@ class Bot:
         with status_lock:
             if constant.contains_value(BotStatus, status_value):
                 tgt_status = BotStatus(status_value)
-                print("try switch status: {} -> {}".format(self.status, tgt_status))
+                logger.info("try switch status: {} -> {}".format(self.status, tgt_status))
                 self.status = tgt_status
-                print("switch to status: {} success".format(status_value))
+                logger.info("switch to status: {} success".format(status_value))
             else:
-                print("switch to status: {} failed".format(status_value))
+                logger.error("switch to status: {} failed".format(status_value))
 
     def on_text(self, text):
         res = None
@@ -57,7 +57,7 @@ class Bot:
         return res
 
     def on_voice(self, audio):
-        print("on_voice try parse audio...")
+        logger.info("on_voice try parse audio...")
         text = language.audio2text(audio)
         res = self.on_text(text)
         return res

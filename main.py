@@ -21,7 +21,6 @@ def process_event(text):
         bot.switch_status(value)
     ret = bot.on_text(text)
     logger.warning("process_event return :{}".format(ret))
-    # print("{}".format(ret))
     # filename = language.text2audio(ret)
     # language.play_audio(filename)
     return ret
@@ -38,7 +37,6 @@ class ABot(Star):
         user_name = event.get_sender_name()
         message_str = event.message_str.removeprefix('abot ')  # abot+空格
         message_ret = process_event(message_str)
-        logger.info("abot command")
         yield event.plain_result(f"received: {message_str}\nsender: {user_name}\nresponse: {message_ret}")  # 发送一条纯文本消息
 
     async def terminate(self):

@@ -2,7 +2,7 @@ import time
 import pyttsx4
 import speech_recognition as sr
 from playsound import playsound
-
+from astrbot.api import logger
 engine = pyttsx4.Engine()
 
 
@@ -15,9 +15,9 @@ def audio2text(audio_file):
         res = recognizer.recognize_sphinx(audio)
         return res
     except sr.UnknownValueError:
-        print("Sphinx could not understand audio")
+        logger.error("Sphinx could not understand audio")
     except sr.RequestError as e:
-        print("Sphinx error; {0}".format(e))
+        logger.error("Sphinx error; {0}".format(e))
     return None
 
 
@@ -28,7 +28,7 @@ def text2audio(text):
         engine.runAndWait()
         return filename
     except Exception as e:
-        print("text2audio failed for: {}, error:{}".format(text, e))
+        logger.error("text2audio failed for: {}, error:{}".format(text, e))
     return None
 
 
@@ -36,7 +36,7 @@ def play_audio(filename):
     try:
         playsound(filename)
     except Exception as e:
-        print("play {} failed, error:{}".format(filename, e))
+        logger.error("play {} failed, error:{}".format(filename, e))
 
 
 if __name__ == '__main__':
@@ -45,4 +45,4 @@ if __name__ == '__main__':
     lyric = "it has been a long day without you my friend, i will tell you all about it when i see you again"
     filepath = text2audio(lyric)
     play_audio(filepath)
-    print(audio2text(filepath))
+    # print(audio2text(filepath))
