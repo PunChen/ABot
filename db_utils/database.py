@@ -35,7 +35,7 @@ class DB:
 
     def find(self, text):
         if not self.loaded:
-            return text
+            self.load()
         # todo find optimization
         logger.warn(f"data:{self.data}")
         if self.data.__contains__(text):
