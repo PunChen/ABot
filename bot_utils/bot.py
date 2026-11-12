@@ -32,6 +32,8 @@ class Bot:
         self.language = Language.ENGLISH
         # 语音回复开关(输出侧)
         self.voice_reply = False
+        # 语音输入作用域: True=仅私聊, False=群聊也响应
+        self.voice_scope_private = True
         self.modes = {
             BotStatus.TALK: TalkMode(),
             BotStatus.RECORD: RecordMode(),
@@ -82,6 +84,17 @@ class Bot:
             return "usage: voice <on|off>"
         self.voice_reply = value in ("on", "开")
         return f"voice reply {'enabled' if self.voice_reply else 'disabled'}"
+
+    def set_voice_scope(self, value):
+        """语音输入作用域: private=仅私聊, group=群聊也响应。"""
+        value = str(value).strip().lower()
+        if value in ("private", "私聊"):
+            self.voice_scope_private = True
+            return "voice input scope: private"
+        if value in ("group", "群聊"):
+            self.voice_scope_private = False
+            return "voice input scope: group"
+        return "usage: voice <on|off> | voice <private|group>"
 
     # ---------- 对话入口 ----------
 

@@ -10,7 +10,8 @@ from ..file_utils import FileUtils
 from ..lang_utils import text as text_utils
 from astrbot.api import logger
 
-db_lock = threading.Lock()
+# 可重入锁: find/update 等操作内部可能再次进入 save()/load()
+db_lock = threading.RLock()
 base_dir = os.path.dirname(os.path.abspath(__file__))
 data_file_name = "data.json"
 record_file_name = "record.json"
@@ -21,6 +22,8 @@ ANSWER_SEP = "|"
 
 # L2 分词重合度阈值(Jaccard)
 TOKEN_MATCH_THRESHOLD = 0.4
+# 结构化抽取的词条 key 最小长度(避免 "我是学生" 抽出单字 key "我")
+MIN_KEY_LEN = 2
 
 
 class DB:
@@ -70,35 +73,38 @@ class DB:
 
     def find(self, text):
         """三层检索: 规范化精确 -> 分词重合度 -> 编辑距离近似。"""
-        if not self.loaded:
-            self.load()
         q = text_utils.normalize(text)
         if not q:
             return None
-        # L1: 规范化精确(大小写/标点/全半角差异均可命中)
-        key = self._norm_keys.get(q)
-        if key is not None:
-            return self._answer(key)
-        # L2: 分词重合度
-        q_words = text_utils.tokenize(q)
-        best, best_score = None, 0.0
-        if q_words:
-            for k, k_words in self._key_words.items():
-                if not k_words:
-                    continue
-                score = len(q_words & k_words) / len(q_words | k_words)
-                if score > best_score:
-                    best, best_score = k, score
-        if best is not None and best_score >= TOKEN_MATCH_THRESHOLD:
-            return self._answer(best)
-        # L3: 编辑距离兜底
-        close = difflib.get_close_matches(q, list(self._norm_keys), n=3, cutoff=0.6)
-        if close:
-            originals = [self._norm_keys[c] for c in close]
-            if len(originals) == 1:
-                return self._answer(originals[0])
-            return "did you mean: " + " / ".join(originals)
-        return "sorry, i can not understand"
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            # L1: 规范化精确(大小写/标点/全半角差异均可命中)
+            key = self._norm_keys.get(q)
+            if key is not None:
+                return self._answer(key)
+            # L2: 分词重合度(迭代快照, 避免并发学习时 dict 变更)
+            q_words = text_utils.tokenize(q)
+            best, best_score = None, 0.0
+            if q_words:
+                for k, k_words in list(self._key_words.items()):
+                    if not k_words:
+                        continue
+                    score = len(q_words & k_words) / len(q_words | k_words)
+                    if score > best_score:
+                        best, best_score = k, score
+            if best is not None and best_score >= TOKEN_MATCH_THRESHOLD:
+                return self._answer(best)
+            # L3: 编辑距离兜底
+            close = difflib.get_close_matches(
+                q, list(self._norm_keys), n=3, cutoff=0.6
+            )
+            if close:
+                originals = [self._norm_keys[c] for c in close]
+                if len(originals) == 1:
+                    return self._answer(originals[0])
+                return "did you mean: " + " / ".join(originals)
+            return "sorry, i can not understand"
 
     def _answer(self, key):
         value = self.data.get(key)
@@ -113,8 +119,6 @@ class DB:
 
         已存在的问题会合并新答案。返回给用户的反馈文本。
         """
-        if not self.loaded:
-            self.load()
         if LEARN_SEP not in text:
             return "learn usage: <question> => <answer>"
         key, _, value = text.partition(LEARN_SEP)
@@ -123,39 +127,48 @@ class DB:
         if not key or not answers:
             return "learn usage: <question> => <answer>"
         norm = text_utils.normalize(key)
-        existing = self._norm_keys.get(norm)
-        if existing is not None:
-            cur = self.data[existing]
-            cur_list = cur if isinstance(cur, list) else [cur]
-            new = [a for a in answers if a not in cur_list]
-            if not new:
-                return f"already known: {existing} => {cur_list}"
-            self.data[existing] = cur_list + new
+        if not norm:
+            return "learn usage: <question> => <answer>"
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            existing = self._norm_keys.get(norm)
+            if existing is not None:
+                cur = self.data[existing]
+                cur_list = cur if isinstance(cur, list) else [cur]
+                new = [a for a in answers if a not in cur_list]
+                if not new:
+                    return f"already known: {existing} => {cur_list}"
+                self.data[existing] = cur_list + new
+                self.save()
+                return f"updated: {existing} => {self.data[existing]}"
+            self.data[key] = answers[0] if len(answers) == 1 else answers
+            self._index_key(key)
             self.save()
-            return f"updated: {existing} => {self.data[existing]}"
-        self.data[key] = answers[0] if len(answers) == 1 else answers
-        self._index_key(key)
-        self.save()
-        return f"learned: {key} => {self.data[key]}"
+            return f"learned: {key} => {self.data[key]}"
 
     def forget(self, key):
-        if not self.loaded:
-            self.load()
         key = key.strip()
         if not key:
             return "usage: forget <question>"
-        norm = text_utils.normalize(key)
-        existing = self._norm_keys.get(norm)
-        if existing is None:
-            return f"no entry for: {key}"
-        self.data.pop(existing, None)
-        self._norm_keys.pop(norm, None)
-        self._key_words.pop(existing, None)
-        self.save()
-        return f"forgot: {existing}"
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            norm = text_utils.normalize(key)
+            existing = self._norm_keys.get(norm)
+            if existing is None:
+                return f"no entry for: {key}"
+            self.data.pop(existing, None)
+            self._norm_keys.pop(norm, None)
+            self._key_words.pop(existing, None)
+            self.save()
+            return f"forgot: {existing}"
 
-    def learn_url(self, url, max_entries=30):
-        """从网页学习: 抓正文 -> 提名词 -> 补全定义后入库。"""
+    def learn_url(self, url, max_entries=20):
+        """从网页学习: 抓正文 -> 提名词 -> 补全定义后入库。
+
+        抓取(网络 IO)在锁外执行, 合并写入时再加锁。
+        """
         if not url:
             return "usage: crawl <url>"
         if not re.match(r"^https?://\S+$", url.strip()):
@@ -169,43 +182,51 @@ class DB:
         if not entries:
             return f"learned nothing from {url}"
         added = 0
-        for term, summary in entries:
-            norm = text_utils.normalize(term)
-            if norm and norm not in self._norm_keys:
-                self.data[term] = summary
-                self._index_key(term)
-                added += 1
-        self.save()
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            for term, summary in entries:
+                norm = text_utils.normalize(term)
+                if norm and norm not in self._norm_keys:
+                    self.data[term] = summary
+                    self._index_key(term)
+                    added += 1
+            self.save()
         return f"learned {added}/{len(entries)} entries from {url}"
 
     # ---------- 记录(RECORD 模式) ----------
 
     def insert(self, text):
         """记录一句话并即时落盘。"""
-        if not self.loaded:
-            self.load()
-        obj = {
-            "time": str(datetime.datetime.now()),
-            "text": text,
-        }
-        self.record.append(obj)
-        self.save()
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            obj = {
+                "time": str(datetime.datetime.now()),
+                "text": text,
+            }
+            self.record.append(obj)
+            self.save()
         return f"recorded: {text}"
 
     def clear_records(self):
-        if not self.loaded:
-            self.load()
-        count = len(self.record)
-        self.record = []
-        self.save()
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            count = len(self.record)
+            self.record = []
+            self.save()
         return f"cleared {count} records"
 
     def records_text(self):
-        if not self.loaded:
-            self.load()
-        if not self.record:
-            return "(no records yet)"
-        return "\n".join(f"{item.get('time')} {item.get('text')}" for item in self.record)
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            if not self.record:
+                return "(no records yet)"
+            return "\n".join(
+                f"{item.get('time')} {item.get('text')}" for item in self.record
+            )
 
     # ---------- 汇总(record -> 知识) ----------
 
@@ -234,32 +255,41 @@ class DB:
         """把 record 汇总入知识集合(readme TODO #3)。
 
         规则: 结构化句式("X is Y"/"X 是 Y"/"my name is X"...)抽为词条;
-        其余取首个名词 => 原句。默认清空已汇总的记录, keep=True 保留。
+        其余取首个名词 => 原句。key 过短(如单字)的抽取结果会被跳过。
+        默认清空已汇总的记录, keep=True 保留。
         """
-        if not self.loaded:
-            self.load()
-        imported, empty = 0, 0
-        for item in list(self.record):
-            raw = str(item.get("text") or "").strip()
-            if not raw:
-                empty += 1
-                continue
-            key, value = self._pattern_entry(raw)
-            if key is None:
-                nouns = text_utils.extract_nouns(raw, top=1)
-                if nouns:
-                    key, value = nouns[0], raw
-            if key is None:
-                continue
-            norm = text_utils.normalize(key)
-            if not norm or norm in self._norm_keys:
-                continue
-            self.data[key] = value
-            self._index_key(key)
-            imported += 1
-        if imported:
-            self.save()
-        if not keep:
-            self.record = []
-            self.save()
-        return f"imported {imported} entries, {len(self.record)} records left"
+        imported, skipped = 0, 0
+        with db_lock:
+            if not self.loaded:
+                self.load()
+            for item in list(self.record):
+                raw = str(item.get("text") or "").strip()
+                if not raw:
+                    skipped += 1
+                    continue
+                key, value = self._pattern_entry(raw)
+                if key is not None and len(text_utils.normalize(key)) < MIN_KEY_LEN:
+                    key, value = None, None
+                if key is None:
+                    nouns = text_utils.extract_nouns(raw, top=1)
+                    if nouns:
+                        key, value = nouns[0], raw
+                if key is None:
+                    skipped += 1
+                    continue
+                norm = text_utils.normalize(key)
+                if not norm or norm in self._norm_keys:
+                    skipped += 1
+                    continue
+                self.data[key] = value
+                self._index_key(key)
+                imported += 1
+            if imported:
+                self.save()
+            if not keep:
+                self.record = []
+                self.save()
+        return (
+            f"imported {imported} entries, skipped {skipped}, "
+            f"{len(self.record)} records left"
+        )

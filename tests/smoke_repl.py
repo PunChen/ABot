@@ -58,6 +58,8 @@ def main():
     check("bad-switch", process_event("switch abc"), "usage")
     check("records-cleared", process_event("records"), "no records")
     check("voice-off", process_event("voice off"), "disabled")
+    check("voice-scope-group", process_event("voice group"), "group")
+    check("voice-scope-private", process_event("voice private"), "private")
     check("lang", process_event("lang chinese"), "chinese")
 
     print()

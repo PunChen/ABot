@@ -17,8 +17,8 @@ from astrbot.api.star import Context, Star
 
 bot = None
 
-# 语音输入默认仅私聊响应, 避免群聊被语音刷屏
-VOICE_PRIVATE_ONLY = True
+# 语音回复朗读上限(字符), 防止整段列表/帮助被朗读导致长时间阻塞
+TTS_MAX_CHARS = 200
 
 HELP_TEXT = """abot commands:
   abot <text>                  talk to abot (depends on mode)
@@ -29,6 +29,7 @@ HELP_TEXT = """abot commands:
   abot crawl <url>             learn terms from a webpage
   abot lang <chinese|english>  language for voice
   abot voice <on|off>          reply with voice
+  abot voice <private|group>   voice input scope
   abot stop                    stop abot and save
   abot help                    show this help
 learn mode: 'abot <question> => <answer>' or 'abot <url>'"""
@@ -77,7 +78,10 @@ def process_event(text):
     if cmd == Command.LANG:
         return bot.set_language(args)
     if cmd == Command.VOICE:
-        return bot.set_voice_reply(args)
+        value = args.strip().lower()
+        if value in ("private", "group", "私聊", "群聊"):
+            return bot.set_voice_scope(value)
+        return bot.set_voice_reply(value)
     if cmd == Command.CRAWL:
         return bot.learn_url(args.strip())
     # 普通文本: 按当前模式处理
@@ -93,21 +97,39 @@ def _is_private_chat(event):
         return True
 
 
+def _message_chains(event):
+    """给出消息链候选: AstrBot 消息链 -> get_messages() 兼容接口。"""
+    chains = []
+    try:
+        chain = getattr(event.message_obj, "message", None)
+        if chain:
+            chains.append(list(chain))
+    except Exception:
+        pass
+    try:
+        getter = getattr(event, "get_messages", None)
+        if callable(getter):
+            chain = getter()
+            if chain:
+                chains.append(list(chain))
+    except Exception:
+        pass
+    return chains
+
+
 def _extract_voice_source(event):
     """从消息链/原始 OneBot 事件中提取语音来源(本地路径或 URL)。
 
     AstrBot 开启 provider STT 时会把 Record 段替换成 Plain,
-    所以要同时检查原始 OneBot 事件兜底。
+    所以要同时检查原始 OneBot 事件兜底, 并兼容 get_messages() 形态。
     """
-    # 1) 当前消息链(STT 未替换时 Record 仍在)
-    try:
-        for seg in (event.message_obj.message or []):
+    # 1) 消息链(STT 未替换时 Record 仍在)
+    for chain in _message_chains(event):
+        for seg in chain:
             if isinstance(seg, Comp.Record):
                 src = getattr(seg, "url", None) or getattr(seg, "file", None)
                 if src:
                     return str(src)
-    except Exception:
-        pass
     # 2) 原始 OneBot 事件兜底
     try:
         raw = getattr(event.message_obj, "raw_message", None)
@@ -147,7 +169,7 @@ class ABot(Star):
         try:
             if bot is None or not bot.is_running():
                 return
-            if VOICE_PRIVATE_ONLY and not _is_private_chat(event):
+            if getattr(bot, "voice_scope_private", True) and not _is_private_chat(event):
                 return
             source = _extract_voice_source(event)
             if not source:
@@ -183,8 +205,15 @@ class ABot(Star):
     async def _build_result(self, event, message_ret):
         """语音回复开关开启且 TTS 成功 -> 语音消息, 否则纯文本。"""
         if bot is not None and bot.voice_reply:
+            speak = str(message_ret)
+            if len(speak) > TTS_MAX_CHARS:
+                # 超长内容(如 records 列表/帮助)只朗读开头, 避免长时间阻塞
+                logger.info(
+                    f"tts truncated: {len(speak)} -> {TTS_MAX_CHARS} chars"
+                )
+                speak = speak[:TTS_MAX_CHARS]
             path = await asyncio.to_thread(
-                language.text2audio, str(message_ret), bot.language
+                language.text2audio, speak, bot.language
             )
             if path:
                 return event.chain_result([Comp.Record(file=path, url=path)])

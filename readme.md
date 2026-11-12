@@ -33,6 +33,7 @@ abot forget <question>       删除一个已学习的词条
 abot crawl <url>             从网页学习（抓正文→提名词→维基百科补定义）
 abot lang <chinese|english>  设置语音语言
 abot voice <on|off>          开启/关闭语音回复
+abot voice <private|group>   语音输入作用域（默认仅私聊）
 abot stop                    停止并保存
 abot help                    显示帮助
 ```
@@ -45,10 +46,11 @@ abot help                    显示帮助
 - **识别引擎**：装有 `faster-whisper` 时中英文通用（本地离线）；
   否则英文回退 Sphinx，中文需安装 `pip install faster-whisper`
   或开启 AstrBot 自带 STT（转写文本会直接复用）。
-- **语音回复**：`abot voice on` 后回复语音（pyttsx4 系统语音，输出 wav）。
+- **语音回复**：`abot voice on` 后回复语音（pyttsx4 系统语音，输出 wav，
+  单条回复最多朗读 200 字，超出部分只朗读开头）。
   Windows 自带中文音色（如 Huihui）；Linux 需安装 espeak-ng。
 - **QQ 语音格式**：aiocqhttp 收到的语音常为 silk，需 `pip install pilk` 转码；
-  平台输出 wav 时无需额外依赖。
+  装有 ffmpeg 时 amr/mp3 等格式也能自动转换。
 
 ## 可选依赖
 

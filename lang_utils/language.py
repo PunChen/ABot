@@ -10,6 +10,8 @@
 """
 import os
 import re
+import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -36,6 +38,17 @@ _whisper_model = None
 # 本地 ASR 可选引擎: faster-whisper(中英文, 需 pip install faster-whisper)
 WHISPER_MODEL_SIZE = "base"
 
+# 音色启发式匹配关键词(不同平台/版本对 voice 的描述差异很大)
+_ZH_VOICE_HINTS = (
+    "zh", "chinese", "huihui", "kangkang", "yaoyao", "xiaoxiao",
+    "xiaoyi", "yunxi", "yunyang", "hanhan",
+)
+_EN_VOICE_HINTS = (
+    "en", "english", "david", "zira", "mark", "hazel", "george", "susan",
+)
+# 中文 LCID(小端字节): 0x0804/0x0404/0x0C04/0x1004
+_ZH_LCID_BYTES = (b"\x04\x08", b"\x04\x04", b"\x04\x0c", b"\x04\x10")
+
 
 def _log_and_return_none(message):
     logger.warning(message)
@@ -51,23 +64,35 @@ def _get_engine():
     return _engine
 
 
+def _voice_matches(voice, lang):
+    """判断系统音色是否匹配目标语言(兼容 id/name 字符串与 LCID 字节)。"""
+    want_zh = lang == Language.CHINESE
+    hints = _ZH_VOICE_HINTS if want_zh else _EN_VOICE_HINTS
+    haystack = " ".join(
+        [
+            str(getattr(voice, "id", "") or ""),
+            str(getattr(voice, "name", "") or ""),
+        ]
+    ).lower()
+    for item in getattr(voice, "languages", None) or []:
+        if isinstance(item, bytes):
+            if want_zh and any(lcid in item for lcid in _ZH_LCID_BYTES):
+                return True
+            haystack += " " + item.decode("utf-8", "ignore").lower()
+        else:
+            haystack += " " + str(item).lower()
+    return any(hint in haystack for hint in hints)
+
+
 def _select_voice(engine, lang):
-    """按语言挑选系统音色(zh/en)。"""
-    want = "zh" if lang == Language.CHINESE else "en"
+    """按语言挑选系统音色(zh/en), 找不到返回 None(使用系统默认音色)。"""
     try:
         voices = engine.getProperty("voices") or []
     except Exception:
         return None
     for voice in voices:
-        voice_id = str(getattr(voice, "id", "") or "").lower()
-        langs = getattr(voice, "languages", None) or []
-        langs = [
-            item.decode(errors="ignore") if isinstance(item, bytes) else str(item)
-            for item in langs
-        ]
-        for tag in [voice_id] + [str(x).lower() for x in langs]:
-            if want in tag:
-                return voice
+        if _voice_matches(voice, lang):
+            return voice
     return None
 
 
@@ -131,7 +156,10 @@ def text2audio(text, lang=Language.ENGLISH):
         return None
     try:
         os.makedirs(AUDIO_DIR, exist_ok=True)
-        filename = os.path.join(AUDIO_DIR, f"{int(time.time() * 1000)}.wav")
+        # 纳秒时间戳 + 线程 id, 并发回复不会撞名
+        filename = os.path.join(
+            AUDIO_DIR, f"{time.time_ns()}_{threading.get_ident()}.wav"
+        )
         with _engine_lock:
             engine = _get_engine()
             voice = _select_voice(engine, lang)
@@ -159,13 +187,20 @@ def _download(url, dest):
 
 
 def _silk_to_wav(src, dest):
-    """QQ silk 语音 -> wav(经 pilk 解码为 pcm 后封装)。"""
+    """QQ silk 语音 -> wav。
+
+    pilk 0.2.4 自带 silk_to_wav(silk, wav, rate), 优先使用;
+    旧版本没有该函数时退回 decode(..., pcm_rate=...) 后手动封装 wav。
+    """
     import pilk
 
+    if hasattr(pilk, "silk_to_wav"):
+        pilk.silk_to_wav(src, dest, rate=SILK_SAMPLE_RATE)
+        return dest
     with tempfile.NamedTemporaryFile(suffix=".pcm", delete=False) as tmp:
         pcm_path = tmp.name
     try:
-        pilk.decode(src, pcm_path, sample_rate=SILK_SAMPLE_RATE)
+        pilk.decode(src, pcm_path, pcm_rate=SILK_SAMPLE_RATE)
         with open(pcm_path, "rb") as pcm_fp:
             pcm_data = pcm_fp.read()
         with wave.open(dest, "wb") as wav_fp:
@@ -179,6 +214,24 @@ def _silk_to_wav(src, dest):
             os.remove(pcm_path)
         except OSError:
             pass
+
+
+def _ffmpeg_to_wav(src, dest):
+    """任意音频(amr/mp3/...) -> wav, 依赖系统 ffmpeg, 不可用时返回 None。"""
+    exe = shutil.which("ffmpeg")
+    if not exe:
+        return None
+    try:
+        subprocess.run(
+            [exe, "-y", "-i", src, "-ac", "1", "-ar", "16000", dest],
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
+        return dest if os.path.exists(dest) and os.path.getsize(dest) > 0 else None
+    except Exception as e:
+        logger.warning(f"ffmpeg convert failed for {src}: {e}")
+        return None
 
 
 def prepare_wav(source):
@@ -207,9 +260,13 @@ def prepare_wav(source):
         if silk_like:
             wav_path = re.sub(r"\.[^.]+$", "", local) + ".wav"
             return _silk_to_wav(local, wav_path)
+        # 其他格式(amr/mp3/...)交给 ffmpeg 兜底
+        converted = _ffmpeg_to_wav(local, re.sub(r"\.[^.]+$", "", local) + ".wav")
+        if converted:
+            return converted
         return _log_and_return_none(
             f"unsupported voice format: {local} "
-            "(expect wav/silk; configure platform to output wav or install pilk)"
+            "(expect wav/silk, or install ffmpeg to convert amr/mp3)"
         )
     except ImportError:
         return _log_and_return_none(

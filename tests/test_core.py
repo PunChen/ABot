@@ -148,6 +148,41 @@ class SummarizeTest(TempDBTest):
         self.db.summarize_records(keep=True)
         self.assertIn("chenhao", self.db.records_text())
 
+    def test_short_key_skipped(self):
+        # "我是学生" 可匹配 "我" 是 "学生", 但单字 key 应被跳过, 改走名词 "学生"
+        self.db.insert("我是学生")
+        self.db.summarize_records()
+        self.assertNotIn("我", self.db.data)
+        self.assertIn("学生", self.db.data)
+
+    def test_skipped_counted(self):
+        self.db.insert("")
+        msg = self.db.summarize_records()
+        self.assertIn("skipped 1", msg)
+
+
+class ConcurrencyTest(TempDBTest):
+    def test_find_during_update(self):
+        import threading
+
+        errors = []
+
+        def writer():
+            try:
+                for i in range(100):
+                    self.db.update(f"q{i} => a{i}")
+            except Exception as e:  # noqa: BLE001
+                errors.append(e)
+
+        thread = threading.Thread(target=writer)
+        thread.start()
+        try:
+            for i in range(100):
+                self.db.find(f"q{i} question")
+        finally:
+            thread.join()
+        self.assertEqual(errors, [])
+
 
 class LearnUrlTest(TempDBTest):
     def test_invalid_url(self):
@@ -275,11 +310,82 @@ class BotTest(TempDBTest):
         self.assertTrue(bot.voice_reply)
         self.assertIn("disabled", bot.set_voice_reply("off"))
 
+    def test_voice_scope(self):
+        bot = Bot(db_inst=self.db)
+        self.assertTrue(bot.voice_scope_private)
+        self.assertIn("group", bot.set_voice_scope("group"))
+        self.assertFalse(bot.voice_scope_private)
+        self.assertIn("private", bot.set_voice_scope("private"))
+        self.assertTrue(bot.voice_scope_private)
+        self.assertIn("usage", bot.set_voice_scope("everywhere"))
+
     def test_stop_saves(self):
         bot = Bot(db_inst=self.db)
         bot.on_text("hello")
         bot.set_running(False)
         self.assertFalse(bot.is_running())
+
+
+class TtsResultTest(TempDBTest):
+    """_build_result: TTS 超长截断与失败回退纯文本。"""
+
+    def setUp(self):
+        super().setUp()
+        import asyncio
+
+        from ABot import main as abot_main
+
+        self.asyncio = asyncio
+        self.abot_main = abot_main
+
+        class FakeEvent:
+            def chain_result(self, chain):
+                return ("chain", chain)
+
+            def plain_result(self, text):
+                return ("plain", text)
+
+        self.event = FakeEvent()
+
+    def tearDown(self):
+        self.abot_main.bot = None
+        super().tearDown()
+
+    def run_result(self, text):
+        return self.asyncio.run(
+            self.abot_main.ABot._build_result(None, self.event, text)
+        )
+
+    def test_tts_truncates_long_text(self):
+        bot = Bot(db_inst=self.db)
+        bot.voice_reply = True
+        self.abot_main.bot = bot
+        calls = []
+
+        def fake_tts(text, lang):
+            calls.append(text)
+            return "fake.wav"
+
+        original = self.abot_main.language.text2audio
+        self.abot_main.language.text2audio = fake_tts
+        try:
+            result = self.run_result("x" * 300)
+        finally:
+            self.abot_main.language.text2audio = original
+        self.assertEqual(calls[0], "x" * self.abot_main.TTS_MAX_CHARS)
+        self.assertEqual(result[0], "chain")
+
+    def test_tts_failure_falls_back_to_plain(self):
+        bot = Bot(db_inst=self.db)
+        bot.voice_reply = True
+        self.abot_main.bot = bot
+        original = self.abot_main.language.text2audio
+        self.abot_main.language.text2audio = lambda text, lang: None
+        try:
+            result = self.run_result("reply")
+        finally:
+            self.abot_main.language.text2audio = original
+        self.assertEqual(result, ("plain", "reply"))
 
 
 if __name__ == "__main__":

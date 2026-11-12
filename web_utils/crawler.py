@@ -33,17 +33,33 @@ def is_available():
 
 
 def fetch(url, timeout=REQUEST_TIMEOUT):
-    """抓取网页并抽取正文文本, 失败返回 None。"""
+    """抓取网页并抽取正文文本, 失败返回 None(带一次重试)。"""
     if not _REQUESTS_AVAILABLE:
         logger.warning("crawl requires requests: pip install requests")
         return None
+    resp = _get(url, timeout=timeout)
+    if resp is None:
+        return None
     try:
-        resp = requests.get(url, timeout=timeout, headers={"User-Agent": USER_AGENT})
         resp.raise_for_status()
         return _extract_text(resp.text)
     except Exception as e:
         logger.error(f"fetch {url} failed: {e}")
         return None
+
+
+def _get(url, timeout=REQUEST_TIMEOUT, retries=2):
+    """带一次重试的 GET, 失败返回 None。"""
+    for attempt in range(max(1, retries)):
+        try:
+            return requests.get(
+                url, timeout=timeout, headers={"User-Agent": USER_AGENT}
+            )
+        except Exception as e:
+            logger.warning(f"GET {url} attempt {attempt + 1} failed: {e}")
+            if attempt + 1 < retries:
+                time.sleep(1)
+    return None
 
 
 def _extract_text(html):
@@ -66,14 +82,14 @@ def _extract_text(html):
 
 
 def wiki_summary(term, lang="zh", timeout=REQUEST_TIMEOUT):
-    """查 Wikipedia 摘要, 失败返回 None。"""
+    """查 Wikipedia 摘要, 失败返回 None(带一次重试)。"""
     if not _REQUESTS_AVAILABLE:
         return None
     url = WIKI_API.format(lang=lang, term=quote(term))
+    resp = _get(url, timeout=timeout)
+    if resp is None or resp.status_code != 200:
+        return None
     try:
-        resp = requests.get(url, timeout=timeout, headers={"User-Agent": USER_AGENT})
-        if resp.status_code != 200:
-            return None
         data = resp.json()
         return data.get("extract") or None
     except Exception as e:
@@ -89,10 +105,11 @@ def _first_sentence(text, limit=200):
     return text[:limit].strip()
 
 
-def crawl(url, max_entries=30, depth=1, rate=1.0):
+def crawl(url, max_entries=20, depth=1, rate=0.5):
     """抓取 url: 正文提名词 -> 每个名词取 wiki 摘要首句为词条。
 
     depth=1: 页面名词 -> 定义; depth=2 会再对摘要提名词展开一层(慢, 慎用)。
+    rate 为每次请求间隔(秒), 默认 0.5 使一次学习控制在秒级。
     返回 [(term, summary), ...], 最多 max_entries 条。
     """
     if not _REQUESTS_AVAILABLE:
@@ -115,6 +132,7 @@ def crawl(url, max_entries=30, depth=1, rate=1.0):
             entries.append((topic, _first_sentence(summary)))
             seen.add(text_utils.normalize(topic))
     frontier = text_utils.extract_nouns(page_text, top=max_entries * 2)
+    consecutive_miss = 0
     for level in range(depth):
         next_frontier = []
         for term in frontier:
@@ -127,8 +145,15 @@ def crawl(url, max_entries=30, depth=1, rate=1.0):
             summary = wiki_summary(term, lang=wiki_lang)
             time.sleep(rate)  # 限速
             if summary:
+                consecutive_miss = 0
                 entries.append((term, _first_sentence(summary)))
                 if level + 1 < depth:
                     next_frontier.extend(text_utils.extract_nouns(summary, top=5))
+            else:
+                consecutive_miss += 1
+                if consecutive_miss >= 3:
+                    # 连续失败(断网/被限流)时提前结束, 避免长时间阻塞
+                    logger.warning("crawl aborted: 3 consecutive wiki misses")
+                    return entries
         frontier = next_frontier
     return entries
