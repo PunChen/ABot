@@ -6,14 +6,12 @@ from astrbot.api import logger
 def pre_check(path):
     if len(path) == 0:
         return
-    logger.warn(f"check path:{path}")
     try:
         if not os.path.exists(path):
             with open(path, "a+", encoding='utf-8') as f:
                 pass
     except Exception as e:
-        logger.error("pre_check fail: ", e)
-    pass
+        logger.error(f"pre_check fail: {e}")
 
 
 def read_file(path):
@@ -24,31 +22,35 @@ def read_file(path):
             lines += fp.readlines()
         return lines
     except Exception as e:
-        logger.error("read_file fail: ", e)
+        logger.error(f"read_file fail: {e}")
     return lines
 
 
 def write_json(path, data):
+    """原子写入: 先写临时文件再替换, 避免进程中断留下半个 json。"""
     pre_check(path)
+    tmp_path = f"{path}.tmp"
     try:
-        with open(path, 'w+', encoding='utf-8') as fp:
-            json.dump(data, fp)
+        with open(tmp_path, 'w', encoding='utf-8') as fp:
+            json.dump(data, fp, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, path)
         return True
     except Exception as e:
-        logger.error("write_json fail: ", e)
+        logger.error(f"write_json fail: {e}")
     return False
 
 
 def read_json(path, default):
     pre_check(path)
-    res = default
     try:
         with open(path, 'r', encoding='utf-8') as fp:
-            res = json.load(fp)
-        return res
+            content = fp.read().strip()
+            if not content:
+                return default
+            return json.loads(content)
     except Exception as e:
-        logger.error("read_json fail: ", e)
-    return res
+        logger.error(f"read_json fail: {e}")
+    return default
 
 
 def read_json_from_fp(fp, default):
@@ -57,7 +59,7 @@ def read_json_from_fp(fp, default):
         res = json.load(fp)
         return res
     except Exception as e:
-        logger.error("read_json_from_fp fail: ", e)
+        logger.error(f"read_json_from_fp fail: {e}")
     return res
 
 
@@ -67,8 +69,8 @@ def get_write_file_pointer(path):
         fp = open(path, 'w+', encoding='utf-8')
         return fp
     except Exception as e:
-        logger.error("get_write_file_pointer fail: ", e)
-    pass
+        logger.error(f"get_write_file_pointer fail: {e}")
+    return None
 
 
 def get_read_file_pointer(path):
@@ -77,8 +79,8 @@ def get_read_file_pointer(path):
         fp = open(path, 'r', encoding='utf-8')
         return fp
     except Exception as e:
-        logger.error("get_read_file_pointer fail: ", e)
-    pass
+        logger.error(f"get_read_file_pointer fail: {e}")
+    return None
 
 
 def append_file_content(line, path):
@@ -87,5 +89,5 @@ def append_file_content(line, path):
             fp.write(line)
         return True
     except Exception as e:
-        logger.error("append_file_content fail: ", e)
+        logger.error(f"append_file_content fail: {e}")
     return False

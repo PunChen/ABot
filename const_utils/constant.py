@@ -21,8 +21,8 @@ def name2value(clazz, name=str):
 def value2name(clazz, value):
     for key in clazz.__members__.keys():
         if clazz.__getitem__(key).value == value:
-            return True
-    return False
+            return key
+    return None
 
 
 class Language(Enum):
