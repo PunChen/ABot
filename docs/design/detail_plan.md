@@ -214,8 +214,8 @@ NEWC -left-> L1 : 开始新一代成长循环
 - **主要改动**：
   - 新增 `mind_utils/`：provider 调用封装（异步转同步包装，走 `asyncio.to_thread`）；
   - C 底座路由：AstrBot provider 配置 Ollama 实例；
-  - `constitution.json`：版本化红线清单 + 输出拦截/晋升否决钩子（**样例与使用方法见[附录 A](#附录-aconstitutionjson-样例与使用方法)**）。
-- **验收**：`abot` 链路成功调用一次 provider；发送测试规则关键词（附录 A 的 R099）被拦截且审计日志落盘。
+  - `constitution.json`：版本化红线清单 + 输出拦截/晋升否决钩子。样例与使用方法见 **[附录 A：constitution.json 样例与使用方法](#附录-aconstitutionjson-样例与使用方法)**。
+- **验收**：`abot` 链路成功调用一次 provider；发送测试规则关键词（[附录 A](#附录-aconstitutionjson-样例与使用方法) 的 R099）被拦截且审计日志落盘。
 - **依赖**：无。
 
 ### Phase 1 · 知识图谱层（知识侧）
