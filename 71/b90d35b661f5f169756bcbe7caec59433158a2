@@ -1,0 +1,16 @@
+docs/design/detail_plan.md
+  h_a7ed097e7204d7 223-224
+docs/design/phase1_kg_design.md
+  h_a7ed097e7204d7 1-289
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5+huawei.3",
+  "base_commit_sha": "71b90d35b661f5f169756bcbe7caec59433158a2",
+  "prompts": {},
+  "humans": {
+    "h_a7ed097e7204d7": {
+      "author": "w30049402 <weichenhao1@h-partners.com>"
+    }
+  }
+}
