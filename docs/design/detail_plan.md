@@ -220,6 +220,8 @@ NEWC -left-> L1 : 开始新一代成长循环
 
 ### Phase 1 · 知识图谱层（知识侧）
 
+> **详细设计已产出**：[phase1_kg_design.md](phase1_kg_design.md)（数据模型 / 存储与防抖写 / 构建管道 / Wikidata 外挂 / 查询接口 / 读写优化 / 测试验收）。
+
 - **目标**：data/record 扁平 KV 演进为带溯源的实体关系图。
 - **主要改动**：
   - 新增 `graph_utils/`：三元组存储（JSON 起步，预留 Kùzu/SQLite 迁移）、增量更新、1 跳查询；
